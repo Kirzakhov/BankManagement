@@ -1,0 +1,30 @@
+<main class="login-page">
+  <section class="login-card">
+    <div class="brand-mark" aria-hidden="true">B</div>
+    <p class="eyebrow">BANK MANAGEMENT</p>
+    <h1>Welcome back</h1>
+    <p class="muted">Sign in to manage your account securely.</p>
+
+    <form (ngSubmit)="login()" #loginForm="ngForm">
+      <label for="username">Username</label>
+      <input id="username" name="username" [(ngModel)]="username" autocomplete="username" required>
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" [(ngModel)]="password" autocomplete="current-password" required>
+
+      @if (username.trim() !== 'admin') {
+        <label for="accountNumber">Account number</label>
+        <input id="accountNumber" name="accountNumber" type="number" min="1" [(ngModel)]="accountNumber" inputmode="numeric">
+      }
+
+      @if (error) {
+        <p class="notice error" role="alert">{{ error }}</p>
+      }
+
+      <button class="button primary full-width" type="submit" [disabled]="loading || !loginForm.valid">
+        {{ loading ? 'Signing in…' : 'Sign in' }}
+      </button>
+    </form>
+    <p class="login-hint">Use the <strong>admin</strong> username for administration. All other accounts need an account number.</p>
+  </section>
+</main>

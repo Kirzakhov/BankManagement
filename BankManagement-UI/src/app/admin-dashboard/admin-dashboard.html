@@ -1,0 +1,202 @@
+<div class="dashboard-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/admin"><span class="brand-mark small">B</span> Bankline</a>
+    <div class="topbar-right">
+      <span class="role-chip">Administrator</span>
+      <button class="button quiet" type="button" (click)="logout()">Sign out</button>
+    </div>
+  </header>
+
+  <main class="dashboard-content">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">OVERVIEW</p>
+        <h1>Bank administration</h1>
+        <p class="muted">Manage customer accounts and review recent activity.</p>
+      </div>
+      <button class="button primary" type="button" (click)="beginCreate()">+ New customer</button>
+    </div>
+
+    @if (error) { <p class="notice error" role="alert">{{ error }}</p> }
+    @if (success) { <p class="notice success" role="status">{{ success }}</p> }
+
+    <section class="stat-grid">
+      <article class="stat-card">
+        <span class="stat-label">Customer accounts</span>
+        <strong>{{ customers.length }}</strong>
+        <span class="muted">excluding administrator</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Recent activity</span>
+        <strong>{{ transactions.length }}</strong>
+        <span class="muted">latest transactions</span>
+      </article>
+    </section>
+
+    <div class="content-grid admin-grid">
+      <section class="panel customer-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Customers</h2>
+            <p class="muted">Create, update, and remove customer accounts.</p>
+          </div>
+          <input class="search-input" type="search" aria-label="Search customers"
+            placeholder="Search name, account…" [(ngModel)]="search">
+        </div>
+
+        @if (loading) {
+          <div class="empty-state">Loading accounts…</div>
+        } @else if (customers.length === 0) {
+          <div class="empty-state">{{ search ? 'No matching customers.' : 'No customer accounts yet.' }}</div>
+        } @else {
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th>Customer</th><th>Account</th><th>Contact</th><th>Balance</th><th></th></tr>
+              </thead>
+              <tbody>
+                @for (customer of customers; track customer.acno) {
+                  <tr>
+                    <td><strong>{{ customer.name }}</strong><span class="table-sub">{{ customer.username }}</span></td>
+                    <td>#{{ customer.acno }}</td>
+                    <td>{{ customer.email }}<span class="table-sub">{{ customer.cellno }}</span></td>
+                    <td>{{ customer.balance ?? 0 | currency:'INR':'symbol':'1.2-2' }}</td>
+                    <td class="actions">
+                      <button class="text-button" type="button" (click)="edit(customer)">Edit</button>
+                      <button class="text-button danger-text" type="button" (click)="remove(customer)">Delete</button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <aside class="side-column">
+        @if (editingAccount === null) {
+          <section class="panel form-panel">
+            <div class="panel-heading">
+              <div><h2>Create customer</h2><p class="muted">New accounts start with Rs. 10,000.</p></div>
+            </div>
+            <form (ngSubmit)="save()" #customerForm="ngForm">
+              <div class="form-grid">
+                <label>Name
+                  <input name="name" [(ngModel)]="form.name" minlength="3" required #nameField="ngModel">
+                  @if (nameField.invalid && (nameField.touched || nameField.dirty)) {
+                    <span class="field-error">{{ nameField.errors?.['required'] ? 'Name is required.' : 'Name must be at least 3 characters.' }}</span>
+                  }
+                </label>
+                <label>Username
+                  <input name="username" [(ngModel)]="form.username" minlength="3" required #usernameField="ngModel">
+                  @if (usernameField.invalid && (usernameField.touched || usernameField.dirty)) {
+                    <span class="field-error">{{ usernameField.errors?.['required'] ? 'Username is required.' : 'Username must be at least 3 characters.' }}</span>
+                  }
+                </label>
+                <label>Email
+                  <input name="email" type="email" [(ngModel)]="form.email" required #emailField="ngModel">
+                  @if (emailField.invalid && (emailField.touched || emailField.dirty)) {
+                    <span class="field-error">{{ emailField.errors?.['required'] ? 'Email is required.' : 'Enter a valid email address.' }}</span>
+                  }
+                </label>
+                <label>Phone
+                  <input name="cellno" type="tel" [(ngModel)]="form.cellno" minlength="10" maxlength="13" required #phoneField="ngModel">
+                  @if (phoneField.invalid && (phoneField.touched || phoneField.dirty)) {
+                    <span class="field-error">{{ phoneField.errors?.['required'] ? 'Phone number is required.' : 'Phone number must be 10 to 13 characters.' }}</span>
+                  }
+                </label>
+                <label class="full-span">Address
+                  <input name="address" [(ngModel)]="form.address" minlength="10" required #addressField="ngModel">
+                  @if (addressField.invalid && (addressField.touched || addressField.dirty)) {
+                    <span class="field-error">{{ addressField.errors?.['required'] ? 'Address is required.' : 'Address must be at least 10 characters.' }}</span>
+                  }
+                </label>
+                <label>PAN
+                  <input name="pan" [(ngModel)]="form.pan" minlength="10" maxlength="10" required #panField="ngModel">
+                  @if (panField.invalid && (panField.touched || panField.dirty)) {
+                    <span class="field-error">{{ panField.errors?.['required'] ? 'PAN is required.' : 'PAN must be exactly 10 characters.' }}</span>
+                  }
+                </label>
+                <label>Aadhaar
+                  <input name="adhaar" [(ngModel)]="form.adhaar" inputmode="numeric" minlength="12" maxlength="12" required #aadhaarField="ngModel">
+                  @if (aadhaarField.invalid && (aadhaarField.touched || aadhaarField.dirty)) {
+                    <span class="field-error">{{ aadhaarField.errors?.['required'] ? 'Aadhaar number is required.' : 'Aadhaar number must be exactly 12 digits.' }}</span>
+                  }
+                </label>
+                <label class="full-span">Temporary password
+                  <input name="password" type="password" [(ngModel)]="form.password" minlength="6" required #passwordField="ngModel">
+                  @if (passwordField.invalid && (passwordField.touched || passwordField.dirty)) {
+                    <span class="field-error">{{ passwordField.errors?.['required'] ? 'A temporary password is required.' : 'Password must be at least 6 characters.' }}</span>
+                  }
+                </label>
+              </div>
+              <button class="button primary full-width" type="submit" [disabled]="saving || !customerForm.valid">
+                {{ saving ? 'Saving…' : 'Create account' }}
+              </button>
+            </form>
+          </section>
+        } @else {
+          <section class="panel form-panel">
+            <div class="panel-heading">
+              <div><h2>Edit customer</h2><p class="muted">Account #{{ editingAccount }} — editable profile fields.</p></div>
+              <button class="icon-button" type="button" aria-label="Cancel editing" (click)="cancelEdit()">×</button>
+            </div>
+            <form (ngSubmit)="save()" #editForm="ngForm">
+              <div class="form-grid">
+                <label class="full-span">Name
+                  <input name="name" [(ngModel)]="form.name" minlength="3" required #editNameField="ngModel">
+                  @if (editNameField.invalid && (editNameField.touched || editNameField.dirty)) {
+                    <span class="field-error">{{ editNameField.errors?.['required'] ? 'Name is required.' : 'Name must be at least 3 characters.' }}</span>
+                  }
+                </label>
+                <label class="full-span">Email
+                  <input name="email" type="email" [(ngModel)]="form.email" required #editEmailField="ngModel">
+                  @if (editEmailField.invalid && (editEmailField.touched || editEmailField.dirty)) {
+                    <span class="field-error">{{ editEmailField.errors?.['required'] ? 'Email is required.' : 'Enter a valid email address.' }}</span>
+                  }
+                </label>
+                <label class="full-span">Phone
+                  <input name="cellno" type="tel" [(ngModel)]="form.cellno" minlength="10" maxlength="13" required #editPhoneField="ngModel">
+                  @if (editPhoneField.invalid && (editPhoneField.touched || editPhoneField.dirty)) {
+                    <span class="field-error">{{ editPhoneField.errors?.['required'] ? 'Phone number is required.' : 'Phone number must be 10 to 13 characters.' }}</span>
+                  }
+                </label>
+                <label class="full-span">Address
+                  <input name="address" [(ngModel)]="form.address" minlength="10" required #editAddressField="ngModel">
+                  @if (editAddressField.invalid && (editAddressField.touched || editAddressField.dirty)) {
+                    <span class="field-error">{{ editAddressField.errors?.['required'] ? 'Address is required.' : 'Address must be at least 10 characters.' }}</span>
+                  }
+                </label>
+              </div>
+              <p class="form-note">Username, password, PAN, and Aadhaar cannot be changed through the admin update endpoint.</p>
+              <div class="button-row">
+                <button class="button secondary" type="button" (click)="cancelEdit()">Cancel</button>
+                <button class="button primary" type="submit" [disabled]="saving || !editForm.valid">{{ saving ? 'Saving…' : 'Save changes' }}</button>
+              </div>
+            </form>
+          </section>
+        }
+
+        <section class="panel activity-panel">
+          <div class="panel-heading"><div><h2>Recent transactions</h2><p class="muted">Latest bank activity</p></div></div>
+          @if (transactions.length === 0) {
+            <div class="empty-state compact">No transactions found.</div>
+          } @else {
+            <div class="activity-list">
+              @for (transaction of transactions; track transaction.id) {
+                <article class="activity-item">
+                  <span class="activity-icon" [class.withdrawal]="transaction.trtype === 'WITHDRAW'">↗</span>
+                  <div class="activity-copy">
+                    <strong>{{ transactionLabel(transaction.trtype) }}</strong>
+                    <span>{{ transaction.time | date:'MMM d, y, h:mm a' }}</span>
+                  </div>
+                  <strong class="amount">{{ transaction.amount | currency:'INR':'symbol':'1.2-2' }}</strong>
+                </article>
+              }
+            </div>
+          }
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>

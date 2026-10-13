@@ -1,0 +1,148 @@
+<div class="dashboard-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/account"><span class="brand-mark small">B</span> Bankline</a>
+    <div class="topbar-right">
+      <span class="role-chip">Personal banking</span>
+      <button class="button quiet" type="button" (click)="logout()">Sign out</button>
+    </div>
+  </header>
+
+  <main class="dashboard-content">
+    @if (loading && !account) {
+      <div class="empty-state page-loading">Loading your account…</div>
+    } @else if (account) {
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">YOUR ACCOUNT</p>
+          <h1>Hello, {{ account.name }}</h1>
+          <p class="muted">Account #{{ account.acno }} · {{ account.email }}</p>
+        </div>
+        <button class="button secondary" type="button" (click)="refresh()">Refresh</button>
+      </div>
+
+      @if (error) { <p class="notice error" role="alert">{{ error }}</p> }
+      @if (success) { <p class="notice success" role="status">{{ success }}</p> }
+
+      <section class="balance-card">
+        <div>
+          <span class="balance-label">Available balance</span>
+          <strong>{{ balance || ('₹' + (account.balance ?? 0).toFixed(2)) }}</strong>
+          <span class="balance-caption">Current account · #{{ account.acno }}</span>
+        </div>
+        <span class="balance-emblem" aria-hidden="true">₹</span>
+      </section>
+
+      <div class="content-grid user-grid">
+        <div class="user-main-column">
+          <section class="panel transaction-panel">
+            <div class="panel-heading">
+              <div><h2>Make a transaction</h2><p class="muted">Deposit, withdraw, or transfer funds.</p></div>
+            </div>
+            <form (ngSubmit)="submitTransaction()" #transactionForm="ngForm">
+              <div class="transaction-fields">
+                <label>Transaction type
+                  <select name="trtype" [(ngModel)]="transaction.trtype">
+                    <option value="DEPOSIT">Deposit</option>
+                    <option value="WITHDRAW">Withdraw</option>
+                    <option value="TRANSFER">Transfer</option>
+                  </select>
+                </label>
+                <label>Amount (₹)
+                  <input name="amount" type="number" [(ngModel)]="transaction.amount" min="0.01" step="0.01" required #amountField="ngModel">
+                  @if (amountField.invalid && (amountField.touched || amountField.dirty)) {
+                    <span class="field-error">{{ amountField.errors?.['required'] ? 'Amount is required.' : 'Enter an amount greater than zero.' }}</span>
+                  }
+                </label>
+                @if (transaction.trtype === 'TRANSFER') {
+                  <label>Recipient account number
+                    <input name="racno" type="number" [(ngModel)]="transaction.racno" (ngModelChange)="clearRecipientError()" min="1" required #recipientField="ngModel">
+                    @if (recipientField.invalid && (recipientField.touched || recipientField.dirty)) {
+                      <span class="field-error">{{ recipientField.errors?.['required'] ? 'Recipient account number is required.' : 'Enter a valid account number.' }}</span>
+                    }
+                    @if (recipientError) {
+                      <span class="field-error" role="alert">{{ recipientError }}</span>
+                    }
+                  </label>
+                }
+                <button class="button primary transaction-submit" type="submit" [disabled]="submittingTransaction || !transactionForm.valid">
+                  {{ submittingTransaction ? 'Processing…' : 'Submit transaction' }}
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel history-panel">
+            <div class="panel-heading"><div><h2>Transaction history</h2><p class="muted">Your latest 10 transactions.</p></div></div>
+            @if (transactions.length === 0) {
+              <div class="empty-state compact">No transactions to display.</div>
+            } @else {
+              <div class="table-scroll">
+                <table>
+                  <thead><tr><th>Type</th><th>Date</th><th>Recipient</th><th class="align-right">Amount</th></tr></thead>
+                  <tbody>
+                    @for (entry of transactions; track entry.id) {
+                      <tr>
+                        <td><span class="transaction-type" [class.positive]="entry.trtype === 'DEPOSIT' || entry.trtype === 'TRANSFER_RECEIVED'">{{ transactionLabel(entry.trtype) }}</span></td>
+                        <td>{{ entry.time | date:'MMM d, y, h:mm a' }}</td>
+                        <td>{{ entry.trtype === 'TRANSFER' ? 'To #' + entry.racno : entry.trtype === 'TRANSFER_RECEIVED' ? 'From #' + entry.racno : '—' }}</td>
+                        <td class="align-right">{{ entry.amount | currency:'INR':'symbol':'1.2-2' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </section>
+        </div>
+
+        <aside class="panel profile-panel">
+          <div class="panel-heading"><div><h2>Profile details</h2><p class="muted">Keep your information up to date.</p></div></div>
+          <form (ngSubmit)="saveProfile()" #profileForm="ngForm">
+            <div class="form-grid single-column">
+              <label>Full name
+                <input name="name" [(ngModel)]="profile.name" minlength="3" required #profileNameField="ngModel">
+                @if (profileNameField.invalid && (profileNameField.touched || profileNameField.dirty)) {
+                  <span class="field-error">{{ profileNameField.errors?.['required'] ? 'Name is required.' : 'Name must be at least 3 characters.' }}</span>
+                }
+              </label>
+              <label>Email
+                <input name="email" type="email" [(ngModel)]="profile.email" required #profileEmailField="ngModel">
+                @if (profileEmailField.invalid && (profileEmailField.touched || profileEmailField.dirty)) {
+                  <span class="field-error">{{ profileEmailField.errors?.['required'] ? 'Email is required.' : 'Enter a valid email address.' }}</span>
+                }
+              </label>
+              <label>Phone
+                <input name="cellno" type="tel" [(ngModel)]="profile.cellno" minlength="10" maxlength="13" required #profilePhoneField="ngModel">
+                @if (profilePhoneField.invalid && (profilePhoneField.touched || profilePhoneField.dirty)) {
+                  <span class="field-error">{{ profilePhoneField.errors?.['required'] ? 'Phone number is required.' : 'Phone number must be 10 to 13 characters.' }}</span>
+                }
+              </label>
+              <label>Address
+                <input name="address" [(ngModel)]="profile.address" minlength="10" required #profileAddressField="ngModel">
+                @if (profileAddressField.invalid && (profileAddressField.touched || profileAddressField.dirty)) {
+                  <span class="field-error">{{ profileAddressField.errors?.['required'] ? 'Address is required.' : 'Address must be at least 10 characters.' }}</span>
+                }
+              </label>
+              <label>Username
+                <input name="username" [(ngModel)]="profile.username" minlength="3" required #profileUsernameField="ngModel">
+                @if (profileUsernameField.invalid && (profileUsernameField.touched || profileUsernameField.dirty)) {
+                  <span class="field-error">{{ profileUsernameField.errors?.['required'] ? 'Username is required.' : 'Username must be at least 3 characters.' }}</span>
+                }
+              </label>
+              <label>New password <span class="optional">(optional)</span>
+                <input name="newPassword" type="password" [(ngModel)]="profile.newPassword" minlength="6" autocomplete="new-password" #newPasswordField="ngModel">
+                @if (newPasswordField.invalid && (newPasswordField.touched || newPasswordField.dirty)) {
+                  <span class="field-error">Password must be at least 6 characters.</span>
+                }
+              </label>
+            </div>
+            <p class="form-note">Leave the password blank to keep your current password.</p>
+            <button class="button secondary full-width" type="submit" [disabled]="savingProfile || !profileForm.valid">
+              {{ savingProfile ? 'Saving…' : 'Save profile' }}
+            </button>
+          </form>
+        </aside>
+      </div>
+    }
+  </main>
+</div>
